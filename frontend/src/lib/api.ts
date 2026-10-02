@@ -21,6 +21,10 @@ export class ApiError extends Error {
   }
 }
 
+export function toApiError(err: unknown): ApiError {
+  return err instanceof ApiError ? err : new ApiError("UNKNOWN", "Something went wrong. Please try again.", null);
+}
+
 function isErrorBody(body: unknown): body is ApiErrorBody {
   return typeof body === "object" && body !== null && "error" in body;
 }

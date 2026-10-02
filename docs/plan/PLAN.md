@@ -13,7 +13,9 @@ Working today:
 - 9 red-flag regex rules + unrealistic return-rate check (`engine/red_flags.py`).
 - Deterministic assessment → LOW / NEEDS VERIFICATION / HIGH (`engine/assessment.py`, ADR-006).
 - Firestore repository (+ in-memory for tests), error shape, request IDs, JSON logs.
-- Frontend: single page with story form, channel/language selects, result card, backend status.
+- Frontend: story form with example scenarios, add-evidence loop, annotated evidence trail, safe next steps,
+  "What Zuno checked" / "What looks right" sections (render once F08/F09 produce data), `?id=` restore.
+- Safe next steps (`engine/next_steps.py`) and 7 demo scenarios that double as regression tests.
 - Tooling: Makefile, smoke test, backend Dockerfile. 71 backend tests pass.
 
 Not built yet:
@@ -22,7 +24,6 @@ Not built yet:
 - No adaptive questioning (the core differentiator).
 - No verification engine, so nothing can reach LOW CONCERN or CONTRADICTED.
 - No voice, no Tamil UI, no image evidence, no deployment scripts.
-- Add-evidence API exists but the UI never calls it.
 
 ## Effort scale
 
@@ -36,9 +37,9 @@ Not built yet:
 
 | ID | Feature | Effort | Depends on | Phase | Status |
 |---|---|---|---|---|---|
-| F01 | [Evidence loop & trail UI](01-evidence-trail-ui.md) | Low | — | 1 | Not started |
-| F02 | [Safe next steps](02-safe-next-steps.md) | Low | — | 1 | Not started |
-| F03 | [Demo scenarios](03-demo-scenarios.md) | Low | — | 1 | Not started |
+| F01 | [Evidence loop & trail UI](01-evidence-trail-ui.md) | Low | — | 1 | Done |
+| F02 | [Safe next steps](02-safe-next-steps.md) | Low | — | 1 | Done |
+| F03 | [Demo scenarios](03-demo-scenarios.md) | Low | — | 1 | Done |
 | F04 | [LLM foundation (Gemini)](04-llm-foundation.md) | Medium | — | 2 | Not started |
 | F05 | [Claim & entity extraction](05-extraction.md) | Medium | F04 | 2 | Not started |
 | F06 | [Adaptive questions](06-adaptive-questions.md) | Medium–High | F05 (fallback works without) | 2 | Not started |

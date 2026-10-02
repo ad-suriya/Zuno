@@ -27,6 +27,7 @@ Explanation layer
 | `engine/safety.py` | Credential redaction + hard safety signals |
 | `engine/red_flags.py` | Deterministic warning-signal rules |
 | `engine/assessment.py` | Rules-based assessment (ADR-006) |
+| `engine/next_steps.py` | Rules-chosen safe next steps, returned as codes (F02) |
 | `service.py` | Workflow: redact → store evidence → run rules → assess |
 | `repository/firestore.py` | Firestore persistence |
 | `api/routes.py` | HTTP API |
@@ -41,7 +42,7 @@ signal codes only.
 | POST | `/investigations` | Start from the user's story (`story`, `language`, `channel`) |
 | GET | `/investigations/{id}` | Investigation + evidence + signals + verifications |
 | POST | `/investigations/{id}/evidence` | Add text evidence (`content`) |
-| POST | `/investigations/{id}/assessment` | Run the deterministic assessment |
+| POST | `/investigations/{id}/assessment` | Run the deterministic assessment and its `next_steps` codes |
 
 Outside `/api/v1`: `GET /health` (liveness, no dependencies) and
 `GET /health/ready` (readiness; 503 if Firestore is unreachable).

@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { CircleNotchIcon, ShieldWarningIcon } from "@phosphor-icons/react/ssr";
+import { useRef, useState } from "react";
 
-import { AssessmentResult } from "@/components/AssessmentResult";
-import { api, ApiError } from "@/lib/api";
+import { ErrorNotice } from "@/components/ErrorNotice";
+import { api, ApiError, toApiError } from "@/lib/api";
+import { SCENARIOS, type Scenario } from "@/lib/scenarios";
 import type { Channel, InvestigationDetail, Language } from "@/lib/types";
 
 const CHANNELS: { value: Channel; label: string }[] = [
-  { value: "unknown", label: "Not sure" },
   { value: "whatsapp", label: "WhatsApp" },
   { value: "telegram", label: "Telegram" },
   { value: "call", label: "Phone call" },
@@ -16,96 +17,162 @@ const CHANNELS: { value: Channel; label: string }[] = [
   { value: "referral", label: "Friend or relative" },
   { value: "in_person", label: "In person" },
   { value: "other", label: "Other" },
+  { value: "unknown", label: "Not sure" },
 ];
 
-export function StoryForm() {
+const LANGUAGES: { value: Language; label: string; lang: string }[] = [
+  { value: "en", label: "English", lang: "en" },
+  { value: "ta", label: "தமிழ்", lang: "ta" },
+];
+
+// Visually a chip, semantically a radio: the input stays in the tab order and drives the style via `peer`.
+const CHIP =
+  "flex min-h-11 cursor-pointer items-center rounded-full border border-border-strong bg-surface px-4 text-sm " +
+  "transition-colors duration-150 peer-checked:border-primary peer-checked:bg-primary peer-checked:text-on-primary " +
+  "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent hover:bg-surface-muted";
+
+/** The start of a check: the user's story, how it reached them, and its language. */
+export function StoryForm({ onCreated }: { onCreated: (detail: InvestigationDetail) => void }) {
   const [story, setStory] = useState("");
   const [channel, setChannel] = useState<Channel>("unknown");
   const [language, setLanguage] = useState<Language>("en");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
-  const [detail, setDetail] = useState<InvestigationDetail | null>(null);
+  const storyRef = useRef<HTMLTextAreaElement>(null);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function check() {
     setBusy(true);
     setError(null);
     try {
       const created = await api.createInvestigation({ story, channel, language });
-      setDetail(await api.assess(created.investigation.id));
+      onCreated(await api.assess(created.investigation.id));
     } catch (err) {
-      setError(err instanceof ApiError ? err : new ApiError("UNKNOWN", "Something went wrong.", null));
+      setError(toApiError(err));
     } finally {
       setBusy(false);
     }
   }
 
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    check();
+  }
+
+  // F03: fill the form from a demo scenario; the user still presses "Check this offer".
+  function fillExample(scenario: Scenario) {
+    setStory(scenario.story);
+    setChannel(scenario.channel);
+    setLanguage(scenario.language);
+    storyRef.current?.focus();
+  }
+
   return (
-    <div className="space-y-6">
-      <form onSubmit={onSubmit} className="space-y-4">
-        <label className="block">
-          <span className="text-sm font-medium text-stone-900">What happened?</span>
-          <span className="block text-sm text-stone-600">
-            Tell us about the offer in your own words: who contacted you, what they promised, and what they asked for.
-          </span>
+    <div className="space-y-12">
+      <div>
+        <h1 className="font-display text-5xl text-balance sm:text-7xl">Check the offer before you pay.</h1>
+        <p className="mt-4 max-w-prose text-lg text-fg-muted">
+          Tell Zuno what you were offered. It marks the parts that need checking and explains why.
+        </p>
+      </div>
+
+      <form onSubmit={onSubmit} className="space-y-8">
+        <div>
+          <label htmlFor="story" className="block text-lg font-semibold">
+            What happened?
+          </label>
+          <p id="story-help" className="mt-1 text-fg-muted">
+            In your own words: who contacted you, what they promised, and what they asked you to do. You can paste the
+            message you received.
+          </p>
+          <p className="mt-4 flex gap-2 rounded-lg bg-surface-muted p-3 text-sm font-medium">
+            <ShieldWarningIcon size={20} className="shrink-0 text-high-line" aria-hidden />
+            Never type an OTP, PIN, password or card number. Zuno will never ask for them.
+          </p>
           <textarea
+            ref={storyRef}
+            id="story"
+            aria-describedby="story-help"
             value={story}
             onChange={(e) => setStory(e.target.value)}
-            rows={5}
+            rows={6}
             maxLength={10_000}
             required
-            className="mt-2 w-full rounded-md border border-stone-300 bg-white p-3 text-base text-stone-900 focus:border-stone-900 focus:outline-none"
+            lang={language}
+            className="mt-3 block min-h-36 w-full rounded-lg border border-border-strong bg-surface p-3 text-base focus:border-accent"
             placeholder="A Telegram group admin said I will get guaranteed 20% monthly returns if I invest ₹25,000…"
           />
-        </label>
-
-        <div className="flex flex-wrap gap-4">
-          <label className="text-sm text-stone-900">
-            How were you approached?
-            <select
-              value={channel}
-              onChange={(e) => setChannel(e.target.value as Channel)}
-              className="mt-1 block rounded-md border border-stone-300 bg-white p-2"
-            >
-              {CHANNELS.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm text-stone-900">
-            Language
-            <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value as Language)}
-              className="mt-1 block rounded-md border border-stone-300 bg-white p-2"
-            >
-              <option value="en">English</option>
-              <option value="ta">தமிழ் (Tamil)</option>
-            </select>
-          </label>
         </div>
 
-        <p className="text-sm text-stone-600">Do not type any OTP, PIN, password or card number.</p>
+        <fieldset>
+          <legend className="text-lg font-semibold">How did the offer reach you?</legend>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {CHANNELS.map((c) => (
+              <label key={c.value}>
+                <input
+                  type="radio"
+                  name="channel"
+                  value={c.value}
+                  checked={channel === c.value}
+                  onChange={() => setChannel(c.value)}
+                  className="peer sr-only"
+                />
+                <span className={CHIP}>{c.label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend className="text-lg font-semibold">Your message is in</legend>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {LANGUAGES.map((l) => (
+              <label key={l.value}>
+                <input
+                  type="radio"
+                  name="language"
+                  value={l.value}
+                  checked={language === l.value}
+                  onChange={() => setLanguage(l.value)}
+                  className="peer sr-only"
+                />
+                <span lang={l.lang} className={CHIP}>
+                  {l.label}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <button
           type="submit"
           disabled={busy || !story.trim()}
-          className="rounded-md bg-stone-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-400"
+          className="flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary px-6 font-semibold text-on-primary transition-opacity duration-150 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto"
         >
+          {busy && <CircleNotchIcon size={20} className="motion-safe:animate-spin" aria-hidden />}
           {busy ? "Checking…" : "Check this offer"}
         </button>
       </form>
 
-      {error && (
-        <div role="alert" className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900">
-          <p>{error.message}</p>
-          {error.requestId && <p className="mt-1 font-mono text-xs text-red-700">Reference: {error.requestId}</p>}
-        </div>
-      )}
+      {error && <ErrorNotice error={error} onRetry={check} busy={busy} />}
 
-      {detail && <AssessmentResult detail={detail} />}
+      <section aria-labelledby="examples-heading" className="border-t border-dashed border-border-strong pt-6">
+        <h2 id="examples-heading" className="font-semibold">
+          No message to check? Try an example
+        </h2>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {SCENARIOS.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              lang={s.language}
+              onClick={() => fillExample(s)}
+              className="min-h-11 cursor-pointer rounded-full bg-surface-muted px-4 text-sm transition-colors duration-150 hover:bg-border"
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

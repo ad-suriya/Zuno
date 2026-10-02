@@ -1,20 +1,35 @@
 import { BackendStatus } from "@/components/BackendStatus";
-import { StoryForm } from "@/components/StoryForm";
+import { Checker } from "@/components/Checker";
 
-export default function Home() {
+export default async function Home({ searchParams }: PageProps<"/">) {
+  const { id } = await searchParams;
+
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10 sm:py-16">
-      <header className="mb-8 space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight text-stone-900">Zuno</h1>
-        <p className="text-stone-700">Know before you act. Check a financial offer before you put money at risk.</p>
-        <BackendStatus />
+    <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-6 pb-16 sm:pt-10">
+      <header className="mb-10">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-border pb-4">
+          <p className="font-display text-2xl tracking-wide">ZUNO</p>
+          <BackendStatus />
+        </div>
       </header>
 
-      <StoryForm />
+      <Checker initialId={typeof id === "string" ? id : null} />
 
-      <footer className="mt-12 border-t border-stone-200 pt-4 text-xs text-stone-500">
-        Zuno does not give investment advice or predict prices. If you have lost money, report it at
-        cybercrime.gov.in or call 1930.
+      <footer className="mt-16 border-t border-border pt-4 text-sm text-fg-muted">
+        Zuno does not give investment advice or predict prices. If you have lost money, call{" "}
+        <a href="tel:1930" className="font-semibold text-accent underline underline-offset-4">
+          1930
+        </a>{" "}
+        or report it at{" "}
+        <a
+          href="https://cybercrime.gov.in"
+          target="_blank"
+          rel="noreferrer"
+          className="text-accent underline underline-offset-4"
+        >
+          cybercrime.gov.in
+        </a>
+        .
       </footer>
     </main>
   );

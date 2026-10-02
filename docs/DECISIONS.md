@@ -87,3 +87,18 @@ verification engine (server-side) writes them.
 
 Reason:
 Prevents invented or client-supplied verification results.
+
+---
+
+## ADR-008: Calm, accessible design system
+
+Decision:
+UI follows `design-system/MASTER.md`: warm stone neutrals, one sea-blue accent, Noto Sans +
+Noto Sans Tamil, flat surfaces, and three reserved assessment colour families (green / amber /
+red) that are always paired with an icon and text label.
+
+Reason:
+Users are often anxious, on low-end phones, and reading in Tamil. A calm public-service look
+builds trust without alarm; Noto covers every Indic script we may add with matched metrics.
+Assessment colours are never used alone, so the level is readable in greyscale and by screen
+readers, and HIGH CONCERN never reads as a "fraud" verdict.

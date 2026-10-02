@@ -31,12 +31,12 @@ export function BackendStatus() {
 
   const dot =
     state.kind === "checking"
-      ? "bg-stone-400"
+      ? "bg-border-strong"
       : state.kind === "offline"
-        ? "bg-red-600"
+        ? "bg-high-line"
         : state.firestore === "ok"
-          ? "bg-emerald-600"
-          : "bg-amber-500";
+          ? "bg-low-line"
+          : "bg-verify-line";
 
   const label =
     state.kind === "checking"
@@ -48,11 +48,11 @@ export function BackendStatus() {
           : `Server v${state.version} · database unavailable`;
 
   return (
-    <div role="status" className="flex items-center gap-2 text-sm text-stone-600">
+    <div role="status" className="flex items-center gap-2 text-sm text-fg-muted">
       <span className={`inline-block h-2.5 w-2.5 rounded-full ${dot}`} aria-hidden />
       <span>{label}</span>
       {state.kind !== "checking" && (
-        <button onClick={check} className="ml-1 underline underline-offset-2 hover:text-stone-900">
+        <button onClick={check} className="ml-1 min-h-11 cursor-pointer underline underline-offset-4 hover:text-fg">
           Recheck
         </button>
       )}

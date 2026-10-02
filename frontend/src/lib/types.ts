@@ -18,6 +18,7 @@ export type SignalKind = "WARNING" | "REASSURING";
 export type Severity = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 export type SignalSource = "RULE" | "VERIFIED_SOURCE";
 export type VerificationStatus = "VERIFIED" | "NOT_VERIFIED" | "CONTRADICTED" | "UNKNOWN" | "NOT_APPLICABLE";
+export type SourceTier = 1 | 2 | 3 | 4;
 export type EvidenceKind = "story" | "text";
 
 export interface Evidence {
@@ -45,7 +46,7 @@ export interface VerificationRecord {
   id: string;
   claim: string;
   source: string;
-  source_tier: 1 | 2 | 3 | 4;
+  source_tier: SourceTier;
   status: VerificationStatus;
   evidence: string;
   explanation: string;
@@ -63,6 +64,7 @@ export interface AssessmentReason {
 export interface Assessment {
   level: AssessmentLevel;
   reasons: AssessmentReason[];
+  next_steps: string[]; // step codes, rendered via STEP_TEXT in lib/content.ts
   assessed_at: string;
 }
 

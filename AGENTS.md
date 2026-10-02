@@ -91,3 +91,4 @@ LLM prompts live in `prompts/`, not inline in source code. The backend loads the
 | `docs/PRIVACY.md` | Data handling rules |
 | `docs/DECISIONS.md` | Architecture decision records |
 | `docs/plan/PLAN.md` | Build plan: feature index, phases, effort; one plan file per feature |
+| `design-system/MASTER.md` | UI tokens, typography, components, accessibility rules |

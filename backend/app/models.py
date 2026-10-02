@@ -122,6 +122,7 @@ class AssessmentReason(BaseModel):
 class Assessment(BaseModel):
     level: AssessmentLevel
     reasons: list[AssessmentReason]
+    next_steps: list[str] = Field(default_factory=list)  # step codes (engine/next_steps.py)
     assessed_at: datetime = Field(default_factory=utcnow)
 
 

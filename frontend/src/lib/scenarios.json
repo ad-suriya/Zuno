@@ -1,0 +1,65 @@
+[
+  {
+    "id": "otp_kyc",
+    "label": "Caller asks for an OTP",
+    "language": "en",
+    "channel": "call",
+    "story": "A man called saying he is from the SEBI KYC department. He said my demat account will be frozen today if I do not complete KYC, and asked me to tell him the OTP that just came to my phone.",
+    "follow_ups": [],
+    "expected_level": "HIGH_CONCERN"
+  },
+  {
+    "id": "telegram_tips",
+    "label": "Telegram “sure-shot” tips",
+    "language": "en",
+    "channel": "telegram",
+    "story": "I was added to a Telegram group called Profit Star. The admin shares sure-shot tips every morning and says members get guaranteed 20% monthly returns. He wants ₹25,000 today only to join the premium group.",
+    "follow_ups": [],
+    "expected_level": "HIGH_CONCERN"
+  },
+  {
+    "id": "withdraw_fee",
+    "label": "Pay tax to withdraw profit",
+    "language": "en",
+    "channel": "whatsapp",
+    "story": "A trading app I joined through a WhatsApp group shows a profit of ₹1,20,000. When I try to take the money out, support says I must pay 10% tax before withdrawal.",
+    "follow_ups": [],
+    "expected_level": "NEEDS_VERIFICATION"
+  },
+  {
+    "id": "mlm",
+    "label": "Joining fee network",
+    "language": "en",
+    "channel": "referral",
+    "story": "My friend invited me to a network that sells health products. There is a ₹5,000 joining fee, and I earn a commission when I add members under me.",
+    "follow_ups": [],
+    "expected_level": "NEEDS_VERIFICATION"
+  },
+  {
+    "id": "registered_advisor",
+    "label": "Registered adviser",
+    "language": "en",
+    "channel": "referral",
+    "story": "A colleague recommended an investment adviser. He gave me his SEBI registration number INA000012345, charges a yearly fee by invoice, and told me investments carry market risk.",
+    "follow_ups": [],
+    "expected_level": "NEEDS_VERIFICATION"
+  },
+  {
+    "id": "fake_reg_number",
+    "label": "Adviser with a registration number",
+    "language": "en",
+    "channel": "whatsapp",
+    "story": "Someone from Profit Star Advisory messaged me on WhatsApp. He sent SEBI registration number INA000012345 and said I can start with ₹10,000.",
+    "follow_ups": [],
+    "expected_level": "NEEDS_VERIFICATION"
+  },
+  {
+    "id": "tamil_story",
+    "label": "டெலிகிராம் லாப உத்தரவாதம்",
+    "language": "ta",
+    "channel": "telegram",
+    "story": "டெலிகிராம் குழுவில் ஒருவர், மாதம் 20% லாபம் உத்தரவாதம் என்றார். பணம் இரட்டிப்பு ஆகும் என்றும், ₹25,000 இன்றே கட்ட வேண்டும், அவசரம் என்றும் சொன்னார்.",
+    "follow_ups": [],
+    "expected_level": "HIGH_CONCERN"
+  }
+]

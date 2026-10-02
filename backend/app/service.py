@@ -3,6 +3,7 @@
 import logging
 
 from app.engine.assessment import assess
+from app.engine.next_steps import next_steps
 from app.engine.red_flags import detect_red_flags
 from app.engine.safety import detect_hard_signals, redact
 from app.models import (
@@ -82,6 +83,7 @@ class InvestigationService:
         signals = self.repo.list_signals(investigation_id)
         verifications = self.repo.list_verifications(investigation_id)
         assessment = assess(signals, verifications)
+        assessment.next_steps = next_steps(assessment, signals, verifications)
         self.repo.save_assessment(investigation_id, assessment)
         log.info(
             "investigation_assessed",
