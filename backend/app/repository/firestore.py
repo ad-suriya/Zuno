@@ -7,13 +7,25 @@ from google.cloud import firestore
 from pydantic import BaseModel
 
 from app.config import Settings
-from app.models import Assessment, Evidence, Investigation, Signal, VerificationRecord, utcnow
+from app.models import (
+    Assessment,
+    Evidence,
+    Facts,
+    Investigation,
+    Question,
+    Signal,
+    VerificationRecord,
+    expiry,
+    utcnow,
+)
 from app.repository.base import NotFoundError
 
 INVESTIGATIONS = "investigations"
 EVIDENCE = "evidence"
 SIGNALS = "signals"
 VERIFICATIONS = "verifications"
+QUESTIONS = "questions"
+FACTS_FIELD = "facts"
 
 M = TypeVar("M", bound=BaseModel)
 
@@ -31,6 +43,11 @@ def _encode(value: Any) -> Any:
 
 def _to_doc(model: BaseModel, exclude_id: bool = True) -> dict:
     return _encode(model.model_dump(mode="python", exclude={"id"} if exclude_id else None))
+
+
+def _sub_doc(model: BaseModel) -> dict:
+    """Subcollection document with `expires_at`, so the TTL policy also deletes evidence, signals etc."""
+    return {**_to_doc(model), "expires_at": expiry()}
 
 
 class FirestoreRepository:
@@ -74,9 +91,22 @@ class FirestoreRepository:
         ref.update({"assessment": _to_doc(assessment, exclude_id=False), "updated_at": utcnow()})
         return self.get_investigation(investigation_id)
 
+    def set_finished(self, investigation_id: str) -> None:
+        self._require(investigation_id).update({"finished": True, "updated_at": utcnow()})
+
+    def save_facts(self, investigation_id: str, facts: Facts) -> None:
+        self._require(investigation_id).update({FACTS_FIELD: _to_doc(facts, exclude_id=False)})
+
+    def get_facts(self, investigation_id: str) -> Facts | None:
+        snap = self._inv(investigation_id).get()
+        if not snap.exists:
+            raise NotFoundError(investigation_id)
+        data = (snap.to_dict() or {}).get(FACTS_FIELD)
+        return Facts.model_validate(data) if data else None
+
     def add_evidence(self, investigation_id: str, evidence: Evidence) -> None:
         ref = self._require(investigation_id)
-        ref.collection(EVIDENCE).document(evidence.id).set(_to_doc(evidence))
+        ref.collection(EVIDENCE).document(evidence.id).set(_sub_doc(evidence))
         ref.update({"updated_at": utcnow()})
 
     def list_evidence(self, investigation_id: str) -> list[Evidence]:
@@ -88,7 +118,7 @@ class FirestoreRepository:
         ref = self._require(investigation_id)
         batch = self._db.batch()
         for s in signals:
-            batch.set(ref.collection(SIGNALS).document(s.id), _to_doc(s))
+            batch.set(ref.collection(SIGNALS).document(s.id), _sub_doc(s))
         batch.commit()
 
     def list_signals(self, investigation_id: str) -> list[Signal]:
@@ -96,7 +126,31 @@ class FirestoreRepository:
 
     def add_verification(self, investigation_id: str, record: VerificationRecord) -> None:
         ref = self._require(investigation_id)
-        ref.collection(VERIFICATIONS).document(record.id).set(_to_doc(record))
+        ref.collection(VERIFICATIONS).document(record.id).set(_sub_doc(record))
 
     def list_verifications(self, investigation_id: str) -> list[VerificationRecord]:
         return self._list(investigation_id, VERIFICATIONS, VerificationRecord, "checked_at")
+
+    def replace_verifications(self, investigation_id: str, records: list[VerificationRecord]) -> None:
+        ref = self._require(investigation_id)
+        keep = {r.id for r in records}
+        batch = self._db.batch()
+        for doc in ref.collection(VERIFICATIONS).stream():
+            if doc.id not in keep:
+                batch.delete(doc.reference)
+        for r in records:
+            batch.set(ref.collection(VERIFICATIONS).document(r.id), _sub_doc(r))
+        batch.commit()
+
+    def add_question(self, investigation_id: str, question: Question) -> None:
+        ref = self._require(investigation_id)
+        ref.collection(QUESTIONS).document(question.id).set(_sub_doc(question))
+
+    def update_question(self, investigation_id: str, question: Question) -> None:
+        ref = self._require(investigation_id).collection(QUESTIONS).document(question.id)
+        if not ref.get().exists:
+            raise NotFoundError(question.id, "Question")
+        ref.set(_sub_doc(question))
+
+    def list_questions(self, investigation_id: str) -> list[Question]:
+        return self._list(investigation_id, QUESTIONS, Question, "asked_at")

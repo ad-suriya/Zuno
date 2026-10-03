@@ -1,3 +1,3 @@
-from app.repository.base import InvestigationRepository, NotFoundError
+from app.repository.base import ConflictError, InvestigationRepository, NotFoundError
 
-__all__ = ["InvestigationRepository", "NotFoundError"]
+__all__ = ["ConflictError", "InvestigationRepository", "NotFoundError"]

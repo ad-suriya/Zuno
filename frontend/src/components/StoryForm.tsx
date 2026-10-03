@@ -2,110 +2,96 @@
 
 import { useState } from "react";
 
-import { AssessmentResult } from "@/components/AssessmentResult";
-import { api, ApiError } from "@/lib/api";
-import type { Channel, InvestigationDetail, Language } from "@/lib/types";
+import { useI18n } from "@/components/I18nProvider";
+import { VoiceInput } from "@/components/Voice";
+import type { MessageKey } from "@/lib/i18n";
+import { SCENARIOS } from "@/lib/scenarios";
+import type { Channel, Language } from "@/lib/types";
 
-const CHANNELS: { value: Channel; label: string }[] = [
-  { value: "unknown", label: "Not sure" },
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "telegram", label: "Telegram" },
-  { value: "call", label: "Phone call" },
-  { value: "social", label: "Social media" },
-  { value: "email", label: "Email" },
-  { value: "referral", label: "Friend or relative" },
-  { value: "in_person", label: "In person" },
-  { value: "other", label: "Other" },
-];
+const CHANNELS: Channel[] = ["unknown", "whatsapp", "telegram", "call", "social", "email", "referral", "in_person", "other"];
 
-export function StoryForm() {
+export function StoryForm({
+  busy,
+  onSubmit,
+}: {
+  busy: boolean;
+  onSubmit: (story: string, channel: Channel, language: Language) => void;
+}) {
+  const { t, language, setLanguage } = useI18n();
   const [story, setStory] = useState("");
   const [channel, setChannel] = useState<Channel>("unknown");
-  const [language, setLanguage] = useState<Language>("en");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<ApiError | null>(null);
-  const [detail, setDetail] = useState<InvestigationDetail | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const created = await api.createInvestigation({ story, channel, language });
-      setDetail(await api.assess(created.investigation.id));
-    } catch (err) {
-      setError(err instanceof ApiError ? err : new ApiError("UNKNOWN", "Something went wrong.", null));
-    } finally {
-      setBusy(false);
-    }
+  function applyExample(id: string) {
+    const scenario = SCENARIOS.find((s) => s.id === id);
+    if (!scenario) return;
+    setStory(scenario.story);
+    setChannel(scenario.channel);
+    setLanguage(scenario.language);
   }
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={onSubmit} className="space-y-4">
-        <label className="block">
-          <span className="text-sm font-medium text-stone-900">What happened?</span>
-          <span className="block text-sm text-stone-600">
-            Tell us about the offer in your own words: who contacted you, what they promised, and what they asked for.
-          </span>
-          <textarea
-            value={story}
-            onChange={(e) => setStory(e.target.value)}
-            rows={5}
-            maxLength={10_000}
-            required
-            className="mt-2 w-full rounded-md border border-stone-300 bg-white p-3 text-base text-stone-900 focus:border-stone-900 focus:outline-none"
-            placeholder="A Telegram group admin said I will get guaranteed 20% monthly returns if I invest ₹25,000…"
-          />
-        </label>
-
-        <div className="flex flex-wrap gap-4">
-          <label className="text-sm text-stone-900">
-            How were you approached?
-            <select
-              value={channel}
-              onChange={(e) => setChannel(e.target.value as Channel)}
-              className="mt-1 block rounded-md border border-stone-300 bg-white p-2"
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit(story, channel, language);
+      }}
+      className="space-y-4"
+    >
+      <div>
+        <p className="text-xs font-medium text-stone-600">{t("story.examples")}</p>
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {SCENARIOS.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => applyExample(s.id)}
+              className="rounded-full border border-stone-300 bg-white px-3 py-1 text-xs text-stone-700 hover:border-stone-500 hover:text-stone-900"
             >
-              {CHANNELS.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm text-stone-900">
-            Language
-            <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value as Language)}
-              className="mt-1 block rounded-md border border-stone-300 bg-white p-2"
-            >
-              <option value="en">English</option>
-              <option value="ta">தமிழ் (Tamil)</option>
-            </select>
-          </label>
+              {s.title[language]}
+            </button>
+          ))}
         </div>
+      </div>
 
-        <p className="text-sm text-stone-600">Do not type any OTP, PIN, password or card number.</p>
+      <label className="block">
+        <span className="text-sm font-medium text-stone-900">{t("story.label")}</span>
+        <span className="block text-sm text-stone-600">{t("story.help")}</span>
+        <textarea
+          value={story}
+          onChange={(e) => setStory(e.target.value)}
+          rows={5}
+          maxLength={10_000}
+          required
+          className="mt-2 w-full rounded-md border border-stone-300 bg-white p-3 text-base text-stone-900 focus:border-stone-900 focus:outline-none"
+          placeholder={t("story.placeholder")}
+        />
+      </label>
+      <VoiceInput language={language} disabled={busy} onTranscript={(text) => setStory((s) => (s ? `${s} ${text}` : text))} />
 
-        <button
-          type="submit"
-          disabled={busy || !story.trim()}
-          className="rounded-md bg-stone-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-400"
+      <label className="block text-sm text-stone-900">
+        {t("story.channel")}
+        <select
+          value={channel}
+          onChange={(e) => setChannel(e.target.value as Channel)}
+          className="mt-1 block rounded-md border border-stone-300 bg-white p-2"
         >
-          {busy ? "Checking…" : "Check this offer"}
-        </button>
-      </form>
+          {CHANNELS.map((c) => (
+            <option key={c} value={c}>
+              {t(`channel.${c}` as MessageKey)}
+            </option>
+          ))}
+        </select>
+      </label>
 
-      {error && (
-        <div role="alert" className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-900">
-          <p>{error.message}</p>
-          {error.requestId && <p className="mt-1 font-mono text-xs text-red-700">Reference: {error.requestId}</p>}
-        </div>
-      )}
+      <p className="text-sm text-stone-600">{t("safety.no_secrets")}</p>
 
-      {detail && <AssessmentResult detail={detail} />}
-    </div>
+      <button
+        type="submit"
+        disabled={busy || !story.trim()}
+        className="rounded-md bg-stone-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-stone-700 disabled:cursor-not-allowed disabled:bg-stone-400"
+      >
+        {busy ? t("story.checking") : t("story.submit")}
+      </button>
+    </form>
   );
 }

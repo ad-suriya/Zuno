@@ -3,26 +3,20 @@
 This is the index. Each feature has its own plan file in this folder with
 goal, design, tasks, tests and acceptance criteria.
 
-## Where we are (as of 2026-10-02)
+## Where we are (as of 2026-10-04)
 
-Working today:
+All features F01–F13 are implemented. With `LLM_ENABLED=false` every AI feature runs on its
+deterministic fallback; 199 backend tests pass (incl. the F03 scenarios against the real SEBI snapshot),
+frontend lint + typecheck + production build pass, and `make smoke` passes against a local stack.
 
-- Backend API: create investigation, get, add evidence, assess, health/readiness.
-- Credential redaction before storage (`engine/safety.py`).
-- Hard safety signals (OTP, PIN, password, credentials, remote access) → CRITICAL.
-- 9 red-flag regex rules + unrealistic return-rate check (`engine/red_flags.py`).
-- Deterministic assessment → LOW / NEEDS VERIFICATION / HIGH (`engine/assessment.py`, ADR-006).
-- Firestore repository (+ in-memory for tests), error shape, request IDs, JSON logs.
-- Frontend: single page with story form, channel/language selects, result card, backend status.
-- Tooling: Makefile, smoke test, backend Dockerfile. 71 backend tests pass.
+Still needs people or credentials (not doable from code alone):
 
-Not built yet:
-
-- No LLM calls (prompts in `prompts/` are unused).
-- No adaptive questioning (the core differentiator).
-- No verification engine, so nothing can reach LOW CONCERN or CONTRADICTED.
-- No voice, no Tamil UI, no image evidence, no deployment scripts.
-- Add-evidence API exists but the UI never calls it.
+- Native-speaker review of all Tamil copy (frontend `i18n.ts`, backend `i18n.py`, Tamil scenario).
+- Gemini: set `LLM_ENABLED=true` + `GEMINI_MODEL` with ADC credentials, run the live test
+  (`LLM_LIVE=1 pytest -m live`) and review LLM questions/explanations on the F03 scenarios.
+- Sarvam: set `SARVAM_API_KEY` and try a real Tamil recording end to end.
+- Deployment: run `scripts/deploy.sh setup|all` against a GCP project, then `make smoke` on the URLs.
+- Firestore emulator round-trip tests (`gcloud` was not available while building).
 
 ## Effort scale
 
@@ -36,19 +30,19 @@ Not built yet:
 
 | ID | Feature | Effort | Depends on | Phase | Status |
 |---|---|---|---|---|---|
-| F01 | [Evidence loop & trail UI](01-evidence-trail-ui.md) | Low | — | 1 | Not started |
-| F02 | [Safe next steps](02-safe-next-steps.md) | Low | — | 1 | Not started |
-| F03 | [Demo scenarios](03-demo-scenarios.md) | Low | — | 1 | Not started |
-| F04 | [LLM foundation (Gemini)](04-llm-foundation.md) | Medium | — | 2 | Not started |
-| F05 | [Claim & entity extraction](05-extraction.md) | Medium | F04 | 2 | Not started |
-| F06 | [Adaptive questions](06-adaptive-questions.md) | Medium–High | F05 (fallback works without) | 2 | Not started |
-| F07 | [Explanation layer](07-explanation.md) | Medium | F04, F02 | 2 | Not started |
-| F08 | [SEBI verification](08-verification-sebi.md) | High | F05 | 3 | Not started |
-| F09 | [Reassuring signals](09-reassuring-signals.md) | Low–Medium | F08 | 3 | Not started |
-| F10 | [Tamil localization](10-tamil-localization.md) | Medium | F01, F02 | 4 | Not started |
-| F11 | [Voice (Sarvam)](11-voice-sarvam.md) | High | F06, F10 | 4 | Not started |
-| F12 | [Deployment (GCP)](12-deployment.md) | Medium | — (repeat after F04, F11) | 0 → 5 | Not started |
-| F13 | [Screenshot evidence](13-screenshot-evidence.md) | High | F04 | Stretch | Not started |
+| F01 | [Evidence loop & trail UI](01-evidence-trail-ui.md) | Low | — | 1 | Done |
+| F02 | [Safe next steps](02-safe-next-steps.md) | Low | — | 1 | Done |
+| F03 | [Demo scenarios](03-demo-scenarios.md) | Low | — | 1 | Done |
+| F04 | [LLM foundation (Gemini)](04-llm-foundation.md) | Medium | — | 2 | Done (live Gemini test pending) |
+| F05 | [Claim & entity extraction](05-extraction.md) | Medium | F04 | 2 | Done (live Gemini test pending) |
+| F06 | [Adaptive questions](06-adaptive-questions.md) | Medium–High | F05 (fallback works without) | 2 | Done |
+| F07 | [Explanation layer](07-explanation.md) | Medium | F04, F02 | 2 | Done |
+| F08 | [SEBI verification](08-verification-sebi.md) | High | F05 | 3 | Done |
+| F09 | [Reassuring signals](09-reassuring-signals.md) | Low–Medium | F08 | 3 | Done |
+| F10 | [Tamil localization](10-tamil-localization.md) | Medium | F01, F02 | 4 | Done (native-speaker review pending) |
+| F11 | [Voice (Sarvam)](11-voice-sarvam.md) | High | F06, F10 | 4 | Done (untested with a real Sarvam key) |
+| F12 | [Deployment (GCP)](12-deployment.md) | Medium | — (repeat after F04, F11) | 0 → 5 | Done (scripts); not yet deployed |
+| F13 | [Screenshot evidence](13-screenshot-evidence.md) | High | F04 | Stretch | Done (live Gemini test pending) |
 
 ## Phases
 
@@ -109,7 +103,7 @@ Suggested split for a 3–4 person team:
 - [ ] Docs / ADR updated
 - [ ] Status column above updated
 
-## Proposed new ADRs
+## New ADRs (recorded in `docs/DECISIONS.md`)
 
 | ADR | Decision | Feature |
 |---|---|---|

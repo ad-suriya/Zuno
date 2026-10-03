@@ -59,7 +59,8 @@ def test_evidence_adds_new_signals_without_duplicates(client):
 
 
 def test_low_concern_requires_trusted_verification(client, repo):
-    inv_id = create(client, story="My bank's relationship manager suggested a SEBI-registered mutual fund.")[
+    # No registration claim in the story, so the verification engine adds no record of its own.
+    inv_id = create(client, story="My bank's relationship manager suggested a mutual fund.")[
         "investigation"
     ]["id"]
     repo.add_verification(

@@ -1,0 +1,65 @@
+[
+  {
+    "id": "otp_kyc",
+    "title": { "en": "Fake SEBI KYC call asking for OTP", "ta": "OTP கேட்கும் போலி SEBI KYC அழைப்பு" },
+    "language": "en",
+    "channel": "call",
+    "story": "A caller said he is from the SEBI KYC department. He said my demat account will be frozen today unless I complete KYC, and asked me to read out the OTP sent to my phone.",
+    "follow_ups": [],
+    "expected_level": "HIGH_CONCERN"
+  },
+  {
+    "id": "telegram_tips",
+    "title": { "en": "Telegram 'sure-shot' tips group", "ta": "டெலிகிராம் 'ஷ்யூர் ஷாட்' டிப்ஸ் குழு" },
+    "language": "en",
+    "channel": "telegram",
+    "story": "I joined a Telegram group that shares sure-shot stock tips. The admin says members get guaranteed 20% monthly returns. He wants me to pay ₹25,000 today only to join the premium group.",
+    "follow_ups": [],
+    "expected_level": "HIGH_CONCERN"
+  },
+  {
+    "id": "withdraw_fee",
+    "title": { "en": "Pay tax before withdrawal", "ta": "பணம் எடுக்க முன் வரி கட்டச் சொல்வது" },
+    "language": "en",
+    "channel": "whatsapp",
+    "story": "A trading app shows my profit as ₹1.2 lakh. Customer support on WhatsApp says I must pay 10% tax before withdrawal.",
+    "follow_ups": [],
+    "expected_level": "NEEDS_VERIFICATION"
+  },
+  {
+    "id": "mlm",
+    "title": { "en": "Network business with joining fee", "ta": "சேர்க்கைக் கட்டணத்துடன் நெட்வொர்க் வியாபாரம்" },
+    "language": "en",
+    "channel": "referral",
+    "story": "A friend invited me to her network business. There is a ₹5,000 joining fee, and I earn commission by adding members under me. They also sell health products.",
+    "follow_ups": ["The products can be bought without joining, and the fee is refundable within 30 days."],
+    "expected_level": "NEEDS_VERIFICATION"
+  },
+  {
+    "id": "registered_advisor",
+    "title": { "en": "Registered investment adviser", "ta": "பதிவு பெற்ற முதலீட்டு ஆலோசகர்" },
+    "language": "en",
+    "channel": "call",
+    "story": "An investment adviser from 1 Finance Private Limited called me. They gave their SEBI registration number INA000017523. They said there are no guaranteed returns, and the advisory fee is paid by invoice to the company.",
+    "follow_ups": [],
+    "expected_level": "LOW_CONCERN"
+  },
+  {
+    "id": "fake_reg_number",
+    "title": { "en": "Someone else's registration number", "ta": "வேறொருவரின் பதிவு எண்" },
+    "language": "en",
+    "channel": "whatsapp",
+    "story": "Alpha Wealth Advisors messaged me on WhatsApp. They said they are SEBI registered and gave registration number INA000017523. The fee is ₹15,000 for one year of advice.",
+    "follow_ups": [],
+    "expected_level": "HIGH_CONCERN"
+  },
+  {
+    "id": "tamil_story",
+    "title": { "en": "Telegram tips (Tamil)", "ta": "டெலிகிராம் டிப்ஸ் (தமிழ்)" },
+    "language": "ta",
+    "channel": "telegram",
+    "story": "டெலிகிராம் குழுவில் ஒருவர் ஷ்யூர் ஷாட் டிப்ஸ் தருவதாகச் சொன்னார். மாதம் 20% லாபம் உத்தரவாதம் என்றார். இன்று மட்டும் ₹25,000 கட்ட வேண்டும் என்கிறார்.",
+    "follow_ups": [],
+    "expected_level": "HIGH_CONCERN"
+  }
+]

@@ -4,7 +4,7 @@ import uuid
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import health
+from app.api import health, media
 from app.api.routes import router
 from app.config import get_settings
 from app.errors import error_response, register_error_handlers
@@ -46,6 +46,7 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     app.include_router(health.router)
     app.include_router(router)
+    app.include_router(media.router)
     return app
 
 

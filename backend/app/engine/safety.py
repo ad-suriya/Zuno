@@ -14,10 +14,22 @@ from app.models import Severity
 
 REDACTED = "[REDACTED]"
 
-# A 4-8 digit code shortly after an OTP / PIN / password keyword.
+_KEYWORDS = (
+    r"(?:\b(?:otp|one[\s-]?time[\s-]?password|upi[\s-]*pin|m-?pin|atm\s*pin|pin|passcode|password|cvv)\b"
+    r"|ஓடிபி|கடவுச்சொல்|பின்\s*(?:எண்|நம்பர்))"
+)
+# A 4-8 digit code shortly after an OTP / PIN / password keyword ("482913", "4 8 2 9 1 3", "4829-13").
 _CODE_AFTER_KEYWORD = re.compile(
-    r"((?:\b(?:otp|one[\s-]?time[\s-]?password|upi[\s-]*pin|m-?pin|atm\s*pin|pin|passcode|password|cvv)\b"
-    r"|ஓடிபி|கடவுச்சொல்)[^\d\n]{0,25}?)(\d{4,8})(?!\d)",
+    rf"({_KEYWORDS}[^\d\n]{{0,25}}?)(\d(?:[\s-]?\d){{3,7}})(?!\d)",
+    re.IGNORECASE,
+)
+# Spoken codes as transcribed by speech-to-text: "my OTP is four eight two nine one three" (English/Tamil).
+_DIGIT_WORD = (
+    r"(?:zero|oh|one|two|three|four|five|six|seven|eight|nine|\d"
+    r"|பூஜ்ஜியம்|சைபர்|ஒன்று|ஒண்ணு|இரண்டு|ரெண்டு|மூன்று|மூணு|நான்கு|நாலு|ஐந்து|அஞ்சு|ஆறு|ஏழு|எட்டு|ஒன்பது)"
+)
+_SPOKEN_CODE = re.compile(
+    rf"({_KEYWORDS}[^\n]{{0,25}}?)(?<!\w)({_DIGIT_WORD}(?:[\s,.-]+{_DIGIT_WORD}){{3,7}})(?!\w)",
     re.IGNORECASE,
 )
 # "password is hunter2", "password: hunter2"
@@ -33,6 +45,7 @@ def redact(text: str) -> tuple[str, bool]:
     """Remove credentials a user may have pasted by mistake (PRIVACY.md)."""
     out = _PASSWORD_VALUE.sub(lambda m: m.group(1) + REDACTED, text)
     out = _CODE_AFTER_KEYWORD.sub(lambda m: m.group(1) + REDACTED, out)
+    out = _SPOKEN_CODE.sub(lambda m: m.group(1) + REDACTED, out)
     out = _CARD_NUMBER.sub(REDACTED, out)
     return out, out != text
 
@@ -43,6 +56,9 @@ class Rule:
     severity: Severity
     pattern: re.Pattern[str]
     explanation: str
+    # Skip matches that are negated ("no joining fee", "returns are not guaranteed").
+    # Hard safety rules are never negatable: "never share your OTP" still flags, erring on caution.
+    negatable: bool = False
 
 
 def _p(pattern: str) -> re.Pattern[str]:

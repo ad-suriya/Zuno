@@ -13,11 +13,21 @@ from google.api_core import exceptions as gcp_exceptions
 from google.auth.exceptions import DefaultCredentialsError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.repository import NotFoundError
+from app.repository import ConflictError, NotFoundError
 
 log = logging.getLogger("zuno.errors")
 
 STORAGE_ERRORS = (gcp_exceptions.GoogleAPIError, DefaultCredentialsError)
+
+
+class ApiProblem(Exception):
+    """An expected failure with a stable error code, e.g. VOICE_UNAVAILABLE (503) or TOO_LARGE (413)."""
+
+    def __init__(self, status: int, code: str, message: str):
+        super().__init__(message)
+        self.status = status
+        self.code = code
+        self.message = message
 
 
 def error_response(request: Request, status: int, code: str, message: str) -> JSONResponse:
@@ -31,7 +41,15 @@ def error_response(request: Request, status: int, code: str, message: str) -> JS
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(NotFoundError)
     async def not_found(request: Request, exc: NotFoundError):
-        return error_response(request, 404, "NOT_FOUND", "Investigation not found.")
+        return error_response(request, 404, "NOT_FOUND", f"{exc.what} not found.")
+
+    @app.exception_handler(ApiProblem)
+    async def api_problem(request: Request, exc: ApiProblem):
+        return error_response(request, exc.status, exc.code, exc.message)
+
+    @app.exception_handler(ConflictError)
+    async def conflict(request: Request, exc: ConflictError):
+        return error_response(request, 409, "CONFLICT", str(exc))
 
     @app.exception_handler(RequestValidationError)
     async def validation(request: Request, exc: RequestValidationError):

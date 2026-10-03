@@ -89,6 +89,31 @@ Deterministic text rules (`backend/app/engine/red_flags.py`):
 Recruitment and joining fees are MEDIUM so that an MLM on its own never
 reaches HIGH CONCERN.
 
+Every rule has English, Tamil-script and Tanglish variants (e.g. "உத்தரவாத", "kandippa profit",
+"inniku mattum", "மாதம் 20%"). Negated phrases ("no guaranteed returns", "there is no joining fee")
+do not fire. Hard safety rules are never negation-aware: "never share your OTP" still flags.
+
+## Reassuring signals
+
+Shown as "What looks right", never used to lower the level (ADR-011):
+
+| Signal | Source |
+|---|---|
+| REGISTRATION_VERIFIED | SEBI register record (tier 1) |
+| NO_UPFRONT_PAYMENT | No money requested after a payment question was answered |
+| REALISTIC_RETURN_CLAIM | Return below the unrealistic thresholds, not described as guaranteed |
+| OFFICIAL_CHANNEL_PAYMENT | Payment UPI handle matches the verified firm's name |
+
+## LLM output guards
+
+- Adaptive questions: every candidate (LLM or template) is vetoed if it mentions an OTP, PIN,
+  password or credentials, gives investment advice, or asks for Aadhaar, PAN, account numbers or
+  banking screenshots (`engine/question_ranker.py`).
+- Explanations: rejected (template used instead) if they name a different level, say "definitely
+  a scam", mention buying/selling, ask for a credential, exceed 120 words, or are in the wrong
+  language (`ai/explanation.py`).
+- Extraction: entities and claims not present in the evidence text are dropped.
+
 Rules are keyword/regex based and will miss paraphrases; LLM extraction will
 add structured claims on top. A story that mentions an OTP in any context
 triggers the OTP signal — this errs on the side of caution.

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans, Noto_Sans_Tamil } from "next/font/google";
+import { I18nProvider } from "@/components/I18nProvider";
+
 import "./globals.css";
 
 const notoSans = Noto_Sans({ variable: "--font-noto-sans", subsets: ["latin"] });
@@ -13,7 +15,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${notoSans.variable} ${notoSansTamil.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <I18nProvider>{children}</I18nProvider>
+      </body>
     </html>
   );
 }
