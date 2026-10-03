@@ -1,78 +1,141 @@
-from app.engine.questions import (
-    FORBIDDEN_TERMS,
-    _CANDIDATES,
-    known_slots,
-    next_question,
-)
+from app.ai.questions import choose_next, template_candidates
+from app.engine.question_ranker import Candidate, rank, veto_reason
+from app.i18n import QUESTION_TEMPLATES
+from app.llm.client import FakeClient
+from app.models import Facts, Language, Question, Unknown
 
-SPEC_STORY = (
-    "Someone on Telegram promised me guaranteed 20% monthly return "
-    "on an investment opportunity and asked for 25,000 rupees."
-)
+TELEGRAM = "Telegram group admin: guaranteed 20% monthly returns, pay ₹25,000 today only."
 
 
-def test_spec_example_asks_for_entity_first():
-    q = next_question([SPEC_STORY])
-    assert q is not None
-    assert q.code == "ENTITY"
-    assert q.text == "What is the exact company or organization name?"
+def cand(text, target=Unknown.ENTITY_NAME, source="llm", priority="high"):
+    return Candidate(text=text, objective="", target_unknown=target, priority=priority, reasoning_source="",
+                     source=source)
 
 
-def test_question_has_required_fields():
-    q = next_question([SPEC_STORY])
-    assert q.objective and q.expected_information and q.reasoning
-    assert q.priority > 0
+def test_veto_credentials_advice_and_sensitive_data():
+    assert veto_reason("Can you share the OTP you received?") == "credential_mention"
+    assert veto_reason("Please share your UPI PIN so we can check") == "credential_mention"
+    assert veto_reason("What is your net banking login?") == "credential_mention"
+    assert veto_reason("உங்கள் ஓடிபி என்ன?") == "credential_mention"
+    assert veto_reason("Should you buy this stock?") == "investment_advice"
+    assert veto_reason("Maybe invest more to recover?") == "investment_advice"
+    assert veto_reason("What is your Aadhaar number?") == "sensitive_data"
+    assert veto_reason("Send a screenshot of your bank app") == "sensitive_data"
+    assert veto_reason("What is the exact company name?") is None
 
 
-def test_known_entity_is_skipped():
-    story = SPEC_STORY + " The company is called Alpha Wealth Pvt Ltd."
-    assert "ENTITY" in known_slots([story])
-    q = next_question([story])
-    assert q is not None and q.code != "ENTITY"
+def test_every_template_passes_the_veto():
+    for lang, templates in QUESTION_TEMPLATES.items():
+        assert set(templates) == set(Unknown), lang
+        for text in templates.values():
+            assert veto_reason(text) is None, text
 
 
-def test_limited_time_offer_is_not_an_entity():
-    assert "ENTITY" not in known_slots(["Limited time offer, join now"])
+def test_ranker_vetoes_and_is_deterministic():
+    candidates = [cand("Share the OTP please", Unknown.REGISTRATION_NUMBER, priority="high"),
+                  cand("What is the company name?"), *template_candidates(set(Unknown), Language.EN)]
+    open_unknowns = set(Unknown)
+    first = rank(candidates, open_unknowns=open_unknowns, asked=[])
+    assert first == rank(list(reversed(candidates)), open_unknowns=open_unknowns, asked=[])
+    assert "OTP" not in first.text
+    assert first.target_unknown == Unknown.ENTITY_NAME
 
 
-def test_registration_number_detected():
-    assert "REGISTRATION" in known_slots(["Their SEBI number is INZ000123456"])
-    assert "REGISTRATION" not in known_slots(["They say they are SEBI registered"])
+def test_ranker_dedupes_asked_and_resolved():
+    asked = [Question(text="What is the company name?", objective="", target_unknown=Unknown.ENTITY_NAME,
+                      reasoning_source="", source="llm")]
+    best = rank([cand("What is the company name?"), cand("Who runs it?", Unknown.ENTITY_NAME),
+                 cand("Registration number?", Unknown.REGISTRATION_NUMBER)],
+                open_unknowns={Unknown.ENTITY_NAME, Unknown.REGISTRATION_NUMBER}, asked=asked)
+    assert best.target_unknown == Unknown.REGISTRATION_NUMBER
+    assert rank([cand("Amount?", Unknown.AMOUNT)], open_unknowns={Unknown.ENTITY_NAME}, asked=[]) is None
 
 
-def test_payment_recipient_detected():
-    assert "PAYMENT_RECIPIENT" in known_slots(["Pay to rahul123@okaxis"])
+def test_registration_claim_boosts_registration_question(client):
+    body = client.post("/api/v1/investigations", json={"story": "They said they are SEBI registered advisers.",
+                                                       "channel": "whatsapp"}).json()
+    inv = body["investigation"]["id"]
+    q = client.post(f"/api/v1/investigations/{inv}/questions/next").json()["next_question"]
+    assert q["target_unknown"] == "REGISTRATION_NUMBER"
 
 
-def test_documentation_detected():
-    assert "DOCUMENTATION" in known_slots(["He sent a brochure on WhatsApp"])
+def test_telegram_example_asks_entity_or_registration_first(client):
+    inv = client.post("/api/v1/investigations", json={"story": TELEGRAM, "channel": "telegram"}).json()[
+        "investigation"]["id"]
+    q = client.post(f"/api/v1/investigations/{inv}/questions/next").json()["next_question"]
+    assert q["target_unknown"] in ("ENTITY_NAME", "REGISTRATION_NUMBER")
+    assert q["text"] == "What is the exact name of the company or organization behind this offer?"
+    assert q["source"] == "template"
 
 
-def test_never_repeats_and_exhausts():
-    asked: list[str] = []
-    while True:
-        q = next_question([SPEC_STORY], asked_codes=asked)
+def test_full_flow_without_llm_never_repeats_and_stops_at_five(client):
+    inv = client.post("/api/v1/investigations", json={"story": "Someone offered me an investment plan.",
+                                                      "channel": "unknown"}).json()["investigation"]["id"]
+    seen = []
+    answers = iter(["Sunrise Growth Capital", "INA000000099", "To a person's UPI ID sunrise@ybl", "₹50,000",
+                    "3% per month", "Yes an agreement"])
+    for _ in range(10):
+        q = client.post(f"/api/v1/investigations/{inv}/questions/next").json()["next_question"]
         if q is None:
             break
-        assert q.code not in asked
-        asked.append(q.code)
-    assert asked == ["ENTITY", "PAYMENT_RECIPIENT", "REGISTRATION", "DOCUMENTATION"]
+        assert q["text"] not in seen
+        seen.append(q["text"])
+        resp = client.post(f"/api/v1/investigations/{inv}/questions/{q['id']}/answer", json={"content": next(answers)})
+        assert resp.status_code == 200, resp.text
+    assert len(seen) == 5
+    detail = client.get(f"/api/v1/investigations/{inv}").json()
+    assert all(q["status"] == "answered" for q in detail["questions"])
+    assert {e["kind"] for e in detail["evidence"]} == {"story", "answer"}
+    assert detail["next_question"] is None
 
 
-def test_stop_conditions():
-    assert next_question([SPEC_STORY], assessment_is_stable=True) is None
-    assert next_question([SPEC_STORY], user_finished=True) is None
-    assert next_question([SPEC_STORY], asked_codes=["A", "B"], max_questions=2) is None
+def test_critical_signal_stops_questions(client):
+    inv = client.post("/api/v1/investigations", json={"story": "They asked me for the OTP to unlock profits."}).json()[
+        "investigation"]["id"]
+    assert client.post(f"/api/v1/investigations/{inv}/questions/next").json()["next_question"] is None
 
 
-def test_all_known_returns_none():
-    story = (
-        "Alpha Wealth Pvt Ltd, SEBI INZ000123456, pay to alpha@okaxis, "
-        "see their brochure"
-    )
-    assert next_question([story]) is None
+def test_skip_finish_and_conflicts(client):
+    inv = client.post("/api/v1/investigations", json={"story": "An investment offer on WhatsApp."}).json()[
+        "investigation"]["id"]
+    q = client.post(f"/api/v1/investigations/{inv}/questions/next").json()["next_question"]
+    # idempotent while a question is pending
+    assert client.post(f"/api/v1/investigations/{inv}/questions/next").json()["next_question"]["id"] == q["id"]
+    assert client.post(f"/api/v1/investigations/{inv}/questions/{q['id']}/skip").json()["questions"][0]["status"] == "skipped"
+    again = client.post(f"/api/v1/investigations/{inv}/questions/{q['id']}/answer", json={"content": "x"})
+    assert again.status_code == 409 and again.json()["error"]["code"] == "CONFLICT"
+    assert client.post(f"/api/v1/investigations/{inv}/questions/nope/skip").json()["error"]["message"] == (
+        "Question not found.")
+    q2 = client.post(f"/api/v1/investigations/{inv}/questions/next").json()["next_question"]
+    assert q2["target_unknown"] != q["target_unknown"]
+    body = client.post(f"/api/v1/investigations/{inv}/finish").json()
+    assert body["investigation"]["finished"] is True and body["next_question"] is None
+    assert client.post(f"/api/v1/investigations/{inv}/questions/next").json()["next_question"] is None
 
 
-def test_no_question_asks_for_credentials():
-    for c in _CANDIDATES:
-        assert not FORBIDDEN_TERMS.search(c.text), c.code
+def test_two_unhelpful_answers_stop_questions(client):
+    inv = client.post("/api/v1/investigations", json={"story": "An investment offer on WhatsApp."}).json()[
+        "investigation"]["id"]
+    for _ in range(2):
+        q = client.post(f"/api/v1/investigations/{inv}/questions/next").json()["next_question"]
+        client.post(f"/api/v1/investigations/{inv}/questions/{q['id']}/answer", json={"content": "I don't know"})
+    assert client.post(f"/api/v1/investigations/{inv}/questions/next").json()["next_question"] is None
+
+
+def test_llm_candidates_are_used_but_vetoed_when_unsafe():
+    facts = Facts(unknowns=[Unknown.ENTITY_NAME, Unknown.REGISTRATION_NUMBER], offer_type="investment")
+    unsafe = FakeClient({"adaptive-question": {"candidates": [
+        {"question": "Please tell me the OTP you got", "priority": "high", "target_unknown": "REGISTRATION_NUMBER"}]}})
+    q = choose_next(unsafe, language=Language.EN, facts=facts, signals=[], verifications=[], asked=[])
+    assert q.source == "template" and "OTP" not in q.text
+
+    good = FakeClient({"adaptive-question": {"candidates": [
+        {"question": "Which company did the caller say they work for?", "priority": "high",
+         "target_unknown": "ENTITY_NAME", "reasoning_source": "entity missing"}]}})
+    q = choose_next(good, language=Language.EN, facts=facts, signals=[], verifications=[], asked=[])
+    assert q.source == "llm" and q.target_unknown == Unknown.ENTITY_NAME
+
+    wrong_lang = FakeClient({"adaptive-question": {"candidates": [
+        {"question": "Which company?", "priority": "high", "target_unknown": "ENTITY_NAME"}]}})
+    q = choose_next(wrong_lang, language=Language.TA, facts=facts, signals=[], verifications=[], asked=[])
+    assert q.source == "template" and q.text == QUESTION_TEMPLATES[Language.TA][Unknown.ENTITY_NAME]

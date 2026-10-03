@@ -1,0 +1,5 @@
+reg_no,name,trade_name,category,valid_from,valid_till,snapshot_date,source_url
+INA000000001,Test Wealth Advisors Private Limited,,Investment Adviser,2020-01-01,,2026-10-01,https://www.sebi.gov.in/test
+INA000000002,Expired Advisory Services LLP,,Investment Adviser,2015-01-01,2020-01-01,2026-10-01,https://www.sebi.gov.in/test
+INH000000003,Kaveri Research Private Limited,,Research Analyst,2021-05-01,,2026-10-01,https://www.sebi.gov.in/test
+INZ000000004,Marina Broking Limited,Marina Trade,Stock Broker,2012-04-10,,2026-10-01,https://www.sebi.gov.in/test

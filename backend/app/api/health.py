@@ -8,7 +8,7 @@ from app.config import get_settings
 from app.errors import STORAGE_ERRORS
 from app.repository import InvestigationRepository
 
-VERSION = "0.1.0"
+VERSION = "0.2.0"
 
 log = logging.getLogger("zuno.health")
 router = APIRouter()

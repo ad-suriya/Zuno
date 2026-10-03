@@ -2,14 +2,18 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { api, ApiError } from "@/lib/api";
+import { useErrorText } from "@/components/ErrorNotice";
+import { useI18n } from "@/components/I18nProvider";
+import { api } from "@/lib/api";
 
 type State =
   | { kind: "checking" }
-  | { kind: "offline"; message: string }
+  | { kind: "offline"; error: unknown }
   | { kind: "online"; version: string; firestore: "ok" | "unavailable" };
 
 export function BackendStatus() {
+  const { t } = useI18n();
+  const errorText = useErrorText();
   const [state, setState] = useState<State>({ kind: "checking" });
 
   const check = useCallback(async () => {
@@ -17,7 +21,7 @@ export function BackendStatus() {
       const [health, ready] = await Promise.all([api.health(), api.readiness()]);
       setState({ kind: "online", version: health.version, firestore: ready.checks.firestore });
     } catch (err) {
-      setState({ kind: "offline", message: err instanceof ApiError ? err.message : "Unknown error." });
+      setState({ kind: "offline", error: err });
     }
   }, []);
 
@@ -40,12 +44,10 @@ export function BackendStatus() {
 
   const label =
     state.kind === "checking"
-      ? "Checking server…"
+      ? t("status.checking")
       : state.kind === "offline"
-        ? state.message
-        : state.firestore === "ok"
-          ? `Server v${state.version} · database connected`
-          : `Server v${state.version} · database unavailable`;
+        ? errorText(state.error)
+        : t(state.firestore === "ok" ? "status.db_ok" : "status.db_down", { version: state.version });
 
   return (
     <div role="status" className="flex items-center gap-2 text-sm text-stone-600">
@@ -53,7 +55,7 @@ export function BackendStatus() {
       <span>{label}</span>
       {state.kind !== "checking" && (
         <button onClick={check} className="ml-1 underline underline-offset-2 hover:text-stone-900">
-          Recheck
+          {t("status.recheck")}
         </button>
       )}
     </div>

@@ -3,11 +3,16 @@ import type {
   ApiErrorBody,
   CreateInvestigationRequest,
   Health,
+  ImageTextResponse,
   InvestigationDetail,
+  Language,
   Readiness,
+  SpeechTarget,
+  TranscriptResponse,
 } from "./types";
 
-const TIMEOUT_MS = 15_000;
+// LLM-backed steps (extraction, questions, explanation, image reading) can take a few seconds each.
+const TIMEOUT_MS = 30_000;
 
 export class ApiError extends Error {
   constructor(
@@ -25,12 +30,14 @@ function isErrorBody(body: unknown): body is ApiErrorBody {
   return typeof body === "object" && body !== null && "error" in body;
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function send(path: string, init: RequestInit = {}): Promise<Response> {
   let response: Response;
+  // FormData bodies set their own multipart Content-Type (with boundary).
+  const headers = init.body instanceof FormData ? init.headers : { "Content-Type": "application/json", ...init.headers };
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...init.headers },
+      headers,
       signal: init.signal ?? AbortSignal.timeout(TIMEOUT_MS),
     });
   } catch (err) {
@@ -39,17 +46,25 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
     throw new ApiError("NETWORK_ERROR", "Could not reach the Zuno server. Check that the backend is running.", null);
   }
-
-  const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
+    const body: unknown = await response.json().catch(() => null);
     const requestId = response.headers.get("X-Request-ID");
     if (isErrorBody(body)) {
       throw new ApiError(body.error.code, body.error.message, response.status, body.error.request_id ?? requestId);
     }
     throw new ApiError("HTTP_ERROR", `Request failed (${response.status}).`, response.status, requestId);
   }
-  return body as T;
+  return response;
 }
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const response = await send(path, init);
+  return (await response.json().catch(() => null)) as T;
+}
+
+const inv = (id: string) => `/api/v1/investigations/${encodeURIComponent(id)}`;
+const post = <T>(path: string, body?: unknown) =>
+  request<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
 
 // Health endpoints answer with a JSON body even when degraded (503), so read it either way.
 async function readiness(): Promise<Readiness> {
@@ -68,12 +83,38 @@ export const api = {
   readiness,
   createInvestigation: (body: CreateInvestigationRequest) =>
     request<InvestigationDetail>("/api/v1/investigations", { method: "POST", body: JSON.stringify(body) }),
-  getInvestigation: (id: string) => request<InvestigationDetail>(`/api/v1/investigations/${encodeURIComponent(id)}`),
-  addEvidence: (id: string, content: string) =>
-    request<InvestigationDetail>(`/api/v1/investigations/${encodeURIComponent(id)}/evidence`, {
+  getInvestigation: (id: string) => request<InvestigationDetail>(inv(id)),
+  addEvidence: (id: string, content: string, kind: "text" | "image_text" = "text") =>
+    post<InvestigationDetail>(`${inv(id)}/evidence`, { content, kind }),
+  assess: (id: string) => post<InvestigationDetail>(`${inv(id)}/assessment`),
+
+  // Adaptive questions (F06)
+  nextQuestion: (id: string) => post<InvestigationDetail>(`${inv(id)}/questions/next`),
+  answer: (id: string, questionId: string, content: string) =>
+    post<InvestigationDetail>(`${inv(id)}/questions/${encodeURIComponent(questionId)}/answer`, { content }),
+  skip: (id: string, questionId: string) =>
+    post<InvestigationDetail>(`${inv(id)}/questions/${encodeURIComponent(questionId)}/skip`),
+  finish: (id: string) => post<InvestigationDetail>(`${inv(id)}/finish`),
+
+  // Voice (F11): audio goes to our backend, which calls Sarvam; nothing is stored.
+  transcribe: (audio: Blob, language: Language) => {
+    const form = new FormData();
+    form.append("audio", audio, "speech.webm");
+    form.append("language", language);
+    return request<TranscriptResponse>("/api/v1/speech/transcribe", { method: "POST", body: form });
+  },
+  synthesize: async (investigationId: string, target: SpeechTarget, questionId?: string): Promise<Blob> => {
+    const response = await send("/api/v1/speech/synthesize", {
       method: "POST",
-      body: JSON.stringify({ content }),
-    }),
-  assess: (id: string) =>
-    request<InvestigationDetail>(`/api/v1/investigations/${encodeURIComponent(id)}/assessment`, { method: "POST" }),
+      body: JSON.stringify({ investigation_id: investigationId, target, question_id: questionId ?? null }),
+    });
+    return response.blob();
+  },
+
+  // Screenshot evidence (F13): returns text for the user to confirm; the image is not stored.
+  readImage: (id: string, image: File) => {
+    const form = new FormData();
+    form.append("image", image);
+    return request<ImageTextResponse>(`${inv(id)}/evidence/image`, { method: "POST", body: form });
+  },
 };

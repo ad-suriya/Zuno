@@ -2,19 +2,28 @@
 
 Firestore layout (ADR-005):
 
-    investigations/{investigation_id}
+    investigations/{investigation_id}      (+ `facts` field, merged after each evidence item)
         evidence/{evidence_id}
         signals/{signal_id}
         verifications/{verification_id}
+        questions/{question_id}
+
+Every document carries `expires_at` for the Firestore TTL policy (PRIVACY.md).
 """
 
 from typing import Protocol
 
-from app.models import Assessment, Evidence, Investigation, Signal, VerificationRecord
+from app.models import Assessment, Evidence, Facts, Investigation, Question, Signal, VerificationRecord
 
 
 class NotFoundError(Exception):
-    pass
+    def __init__(self, item_id: str, what: str = "Investigation"):
+        super().__init__(item_id)
+        self.what = what
+
+
+class ConflictError(Exception):
+    """The request conflicts with the current state (e.g. answering a closed question)."""
 
 
 class InvestigationRepository(Protocol):
@@ -25,6 +34,10 @@ class InvestigationRepository(Protocol):
     def create_investigation(self, investigation: Investigation) -> None: ...
     def get_investigation(self, investigation_id: str) -> Investigation: ...
     def save_assessment(self, investigation_id: str, assessment: Assessment) -> Investigation: ...
+    def set_finished(self, investigation_id: str) -> None: ...
+
+    def save_facts(self, investigation_id: str, facts: Facts) -> None: ...
+    def get_facts(self, investigation_id: str) -> Facts | None: ...
 
     def add_evidence(self, investigation_id: str, evidence: Evidence) -> None: ...
     def list_evidence(self, investigation_id: str) -> list[Evidence]: ...
@@ -34,3 +47,10 @@ class InvestigationRepository(Protocol):
 
     def add_verification(self, investigation_id: str, record: VerificationRecord) -> None: ...
     def list_verifications(self, investigation_id: str) -> list[VerificationRecord]: ...
+    def replace_verifications(self, investigation_id: str, records: list[VerificationRecord]) -> None:
+        """Make `records` the full set (verification is recomputed from the current facts)."""
+        ...
+
+    def add_question(self, investigation_id: str, question: Question) -> None: ...
+    def update_question(self, investigation_id: str, question: Question) -> None: ...
+    def list_questions(self, investigation_id: str) -> list[Question]: ...

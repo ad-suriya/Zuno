@@ -1,0 +1,16 @@
+# Build context for backend/Dockerfile is the repo root. Never send secrets or local state.
+**/.env
+**/.env.*
+!**/.env.example
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/node_modules
+**/.next
+.git
+frontend
+docs
+tests
+backend/tests
